@@ -7,12 +7,27 @@ const fs = require('fs');
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
+const helmet = require('helmet');
 
 const apiRoutes = require('./routes/api.js');
 const fccTestingRoutes = require('./routes/fcctesting.js');
 const runner = require('./test-runner');
 
 const app = express();
+
+// Log all requests
+app.use((req, res, next) => {
+  console.log(`${Date.now()}: ${req.method} ${req.path} - ${req.ip}`);
+  if (process.env.NODE_ENV !== 'test') {
+    console.log('  request params:');
+    Object.keys(req.params)
+      .forEach(key => console.log(`    ${key}: ${req.params[key]}`));
+    console.log('  request query:');
+    Object.keys(req.query)
+      .forEach(key => console.log(`    ${key}: ${req.query[key]}`));
+  }
+  next();
+});
 
 app.use('/public', express.static(process.cwd() + '/public'));
 
@@ -26,6 +41,32 @@ app.route('/')
   .get(function(req, res) {
     res.sendFile(process.cwd() + '/views/index.html');
   });
+
+// Commented out options are turned on with defaults
+const helmetConfig = {
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ['\'self\''],
+      scriptSrc: ['\'self\''],
+      frameSrc: ['\'self\''],
+      objectSrc: ['\'none\''],
+      styleSrc: ['\'self\''],
+      fontSrc: ['\'self\''],
+    },
+  },
+  expectCt: false,
+  //  referrerPolicy: false,
+  hsts: false,
+  //  hsts: {maxAge: 7776000},
+  //  noSniff: false,
+  dnsPrefetchControl: false,
+  //  ieNoOpen: false,
+  frameguard: false,
+  permittedCrossDomainPolicies: false,
+  hidePoweredBy: false,
+  //  xssFilter: false,
+};
+app.use(helmet(helmetConfig));
 
 //For FCC testing purposes
 fccTestingRoutes(app);
