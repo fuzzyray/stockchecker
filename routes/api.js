@@ -1,13 +1,19 @@
 'use strict';
 
 const fetch = require('node-fetch');
+const Database = require('../db/database-sqlite').Database;
+
+const databaseConnection = process.env.DB;
+const db = new Database({'connectString': databaseConnection});
 
 const getStockPrice = (stockSymbol) => {
   return new Promise((resolve, reject) => {
     const url = `https://stock-price-checker-proxy.freecodecamp.rocks/v1/stock/${stockSymbol}/quote`;
     fetch(url).then(response => response.json()).then(data => {
       if (data === 'Unknown symbol') {
-        reject('Unknown symbol');
+        reject(`Unknown symbol: ${stockSymbol}`);
+      } else if (data === 'Not found') {
+        reject(`Symbol not found: ${stockSymbol}`);
       } else {
         resolve({'stock': data['symbol'], 'price': data['latestPrice']});
       }
@@ -17,9 +23,34 @@ const getStockPrice = (stockSymbol) => {
 
 const getStockLikes = (stockSymbol, ipAddress = null, like = false) => {
   return new Promise((resolve, reject) => {
-    setTimeout(() => resolve(
-      {'stock': stockSymbol, 'likes': Math.floor(Math.random() * 10) + 1}),
-      600);
+    db.connectDatabase(databaseConnection, (err, success) => {
+      if (err) {
+        console.log(err);
+        reject(err.toString());
+      } else {
+        if (like) {
+          db.addLike(stockSymbol, ipAddress, (err, results) => {
+            db.getLikes(stockSymbol, (err, results) => {
+              if (err) {
+                console.log(err);
+                reject(err.toString());
+              } else {
+                resolve({'stock': stockSymbol, 'likes': results});
+              }
+            });
+          });
+        } else {
+          db.getLikes(stockSymbol, (err, results) => {
+            if (err) {
+              console.log(err);
+              reject(err.toString());
+            } else {
+              resolve({'stock': stockSymbol, 'likes': results});
+            }
+          });
+        }
+      }
+    });
   });
 };
 
