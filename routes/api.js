@@ -29,15 +29,19 @@ const getStockLikes = (stockSymbol, ipAddress = null, like = false) => {
         reject(err.toString());
       } else {
         if (like) {
-          db.addLike(stockSymbol, ipAddress, (err, results) => {
-            db.getLikes(stockSymbol, (err, results) => {
-              if (err) {
-                console.log(err);
-                reject(err.toString());
-              } else {
-                resolve({'stock': stockSymbol, 'likes': results});
-              }
-            });
+          db.addLike(stockSymbol, ipAddress, (err, success) => {
+            if (err) {
+              reject(err.toString());
+            } else {
+              db.getLikes(stockSymbol, (err, results) => {
+                if (err) {
+                  console.log(err);
+                  reject(err.toString());
+                } else {
+                  resolve({'stock': stockSymbol, 'likes': results});
+                }
+              });
+            }
           });
         } else {
           db.getLikes(stockSymbol, (err, results) => {
@@ -68,9 +72,7 @@ module.exports = function(app) {
           const liked = req.query.hasOwnProperty('like');
           Promise.all(symbols.map(symbol => {
             return Promise.all(
-              [
-                getStockPrice(symbol.toUpperCase()),
-                getStockLikes(symbol.toUpperCase(), req.ip, liked)]);
+              [getStockPrice(symbol.toUpperCase()), getStockLikes(symbol.toUpperCase(), req.ip, liked)]);
           })).then((results) => {
             const stockData = results.map(d => {
               return Object.assign(...d);
@@ -78,10 +80,8 @@ module.exports = function(app) {
             if (stockData.length === 1) {
               return res.json({'stockData': stockData[0]});
             } else {
-              stockData[0]['rel_likes'] = stockData[0]['likes'] -
-                stockData[1]['likes'];
-              stockData[1]['rel_likes'] = stockData[1]['likes'] -
-                stockData[0]['likes'];
+              stockData[0]['rel_likes'] = stockData[0]['likes'] - stockData[1]['likes'];
+              stockData[1]['rel_likes'] = stockData[1]['likes'] - stockData[0]['likes'];
               delete stockData[0]['likes'];
               delete stockData[1]['likes'];
               return res.json({'stockData': stockData});
